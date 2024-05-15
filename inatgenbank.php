@@ -32,8 +32,8 @@ function getAccessionNumbers( $fileData ) {
 function make_curl_request( $url = null, $token = null, $postData = null ) {
 	global $useragent, $errors;
 	$curl = curl_init();
-    if ( $curl && $url ) {
-    	if ( $postData ) {
+	if ( $curl && $url ) {
+		if ( $postData ) {
 			$curlheaders = array(
 				'Cache-Control: no-cache',
 				'Content-Type: application/json',
@@ -44,58 +44,58 @@ function make_curl_request( $url = null, $token = null, $postData = null ) {
 				$curlheaders[] = "Authorization: Bearer " . $token;
 			}
 			curl_setopt( $curl, CURLOPT_HTTPHEADER, $curlheaders );
-        	curl_setopt( $curl, CURLOPT_CUSTOMREQUEST, 'POST' );
+			curl_setopt( $curl, CURLOPT_CUSTOMREQUEST, 'POST' );
 			curl_setopt( $curl, CURLOPT_POSTFIELDS, $postData );
 		}
-        curl_setopt( $curl, CURLOPT_URL, $url );
-        curl_setopt( $curl, CURLOPT_USERAGENT, $useragent );
-        curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-        $out = curl_exec( $curl );
+		curl_setopt( $curl, CURLOPT_URL, $url );
+		curl_setopt( $curl, CURLOPT_USERAGENT, $useragent );
+		curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
+		$out = curl_exec( $curl );
 		if ( $out ) {
-        	$object = json_decode( $out );
-        	if ( $object ) {
-        		return json_decode( json_encode( $object ), true );
-        	} else {
-        		$errors[] = 'API request failed. ' . curl_error( $curl );
-        		return null;
-        	}
-        } else {
-        	$errors[] = 'API request failed. ' . curl_error( $curl );
-        	return null;
-        }
-    } else {
-    	$errors[] = 'Curl initialization failed. ' . curl_error( $curl );
-        return null;
-    }
+			$object = json_decode( $out );
+			if ( $object ) {
+				return json_decode( json_encode( $object ), true );
+			} else {
+				$errors[] = 'API request failed. ' . curl_error( $curl );
+				return null;
+			}
+		} else {
+			$errors[] = 'API request failed. ' . curl_error( $curl );
+			return null;
+		}
+	} else {
+		$errors[] = 'Curl initialization failed. ' . curl_error( $curl );
+		return null;
+	}
 }
 
 function iNat_auth_request( $app_id, $app_secret, $username, $password, $url = 'https://www.inaturalist.org/oauth/token' ) {
 	global $useragent, $errors;
-    $curl = curl_init();
-    $payload = array( 'client_id' => $app_id, 'client_secret' => $app_secret, 'grant_type' => "password", 'username' => $username, 'password' => $password );
-    if ( $curl ) {
-        curl_setopt( $curl, CURLOPT_URL, $url );
-        curl_setopt( $curl, CURLOPT_USERAGENT, $useragent );
-        curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-        curl_setopt( $curl, CURLOPT_POST, true );
-        curl_setopt( $curl, CURLOPT_POSTFIELDS, $payload );
-        $out = curl_exec( $curl );
-        if ( $out ) {
-        	$object = json_decode( $out );
-        	if ( $object ) {
-        		return json_decode( json_encode( $object ), true );
-        	} else {
-        		$errors[] = 'API request failed. ' . curl_error( $curl );
-        		return null;
-        	}
-        } else {
-        	$errors[] = 'API request failed. ' . curl_error( $curl );
-        	return null;
-        }
-    } else {
-    	$errors[] = 'Curl initialization failed. ' . curl_error( $curl );
-        return null;
-    }
+	$curl = curl_init();
+	$payload = array( 'client_id' => $app_id, 'client_secret' => $app_secret, 'grant_type' => "password", 'username' => $username, 'password' => $password );
+	if ( $curl ) {
+		curl_setopt( $curl, CURLOPT_URL, $url );
+		curl_setopt( $curl, CURLOPT_USERAGENT, $useragent );
+		curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
+		curl_setopt( $curl, CURLOPT_POST, true );
+		curl_setopt( $curl, CURLOPT_POSTFIELDS, $payload );
+		$out = curl_exec( $curl );
+		if ( $out ) {
+			$object = json_decode( $out );
+			if ( $object ) {
+				return json_decode( json_encode( $object ), true );
+			} else {
+				$errors[] = 'API request failed. ' . curl_error( $curl );
+				return null;
+			}
+		} else {
+			$errors[] = 'API request failed. ' . curl_error( $curl );
+			return null;
+		}
+	} else {
+		$errors[] = 'Curl initialization failed. ' . curl_error( $curl );
+		return null;
+	}
 }
 
 // Post GenBank acccession number
@@ -198,10 +198,10 @@ body {
 <script src="./jquery.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function () {
-    $("#form1").submit(function () {
-        $(".submitbtn").attr("disabled", true);
-        return true;
-    });
+	$("#form1").submit(function () {
+		$(".submitbtn").attr("disabled", true);
+		return true;
+	});
 });
 </script>
 </head>
