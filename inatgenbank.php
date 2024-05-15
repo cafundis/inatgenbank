@@ -12,6 +12,7 @@ $errors = [];
 $updateResults = [];
 
 function getAccessionNumbers( $fileData ) {
+	global $errors;
 	$accessionNumbers = [];
 	$observations = explode( "\n", $fileData );
 	$x = 0;
