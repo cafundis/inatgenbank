@@ -10,23 +10,22 @@ $useragent = 'iNatGenBank/1.0';
 $inatapi = 'https://api.inaturalist.org/v1/';
 $errors = [];
 $updateResults = [];
-$sleeptime = 1;
 
-function getAccessionNumbers() {
+function getAccessionNumbers( $fileData ) {
 	$accessionNumbers = [];
-	$myFile = "AccessionReport.tsv";
-	$fh = fopen( $myFile, 'r' );
-	if ( $fh ) {
-		$observations = explode( "\n", fread( $fh, filesize( $myFile ) ) );
-		foreach( $observations as $observation ) {
-			if ( preg_match( '/(\w+\d+)\t([\w\d\-]+)\t.*/', $observation, $matches ) ) {
-				$genbank = $matches[1];
-				$sequenceid = $matches[2];
-				$accessionNumbers[$sequenceid] = $genbank;
-			}
+	$observations = explode( "\n", $fileData );
+	$x = 0;
+	foreach( $observations as $observation ) {
+		if ( preg_match( '/(\w+\d+)\t([\w\d\-]+)\t.*/', $observation, $matches ) && $x < 100 ) {
+			$genbank = $matches[1];
+			$sequenceid = $matches[2];
+			$accessionNumbers[$sequenceid] = $genbank;
+			$x++;
 		}
 	}
-	fclose( $fh );
+	if ( $x == 100 ) {
+		$errors[] = 'Maximum number of records exceeded.';
+	}
 	return $accessionNumbers;
 }
 
@@ -100,7 +99,8 @@ function iNat_auth_request( $app_id, $app_secret, $username, $password, $url = '
 }
 
 // Post GenBank acccession number
-function post_genbank( $observationid, $genbank ) {
+function post_genbank( $observationid, $genbank, $token ) {
+	global $inatapi, $errors;
 	$postData['observation_field_value'] = [];
 	$postData['observation_field_value']['observation_id'] = intval( $observationid );
 	$postData['observation_field_value']['value'] = $genbank;
@@ -108,51 +108,67 @@ function post_genbank( $observationid, $genbank ) {
 	$postData = json_encode( $postData );
 	$url = $inatapi . 'observation_field_values';
 	$response = make_curl_request( $url, $token, $postData );
+	sleep( 1 );
 	if ( $response ) {
-		return true;
+		if ( isset( $response['error'] ) ) {
+			$errors[] = 'Accession number could not be added for observation <a href="https://www.inaturalist.org/observations/' . $observationid . '">' . $observationid . "</a>. The owner may have this permission restricted.";
+			return false;
+		} else {
+			return true;
+		}
 	} else {
 		return false;
 	}
 }
 
 // See if form was submitted.
-if ( $_POST ) {
-	// Get authentication token
-	$response = iNat_auth_request( $app_id, $app_secret, $username, $password );
-	if ( $response && isset( $response['access_token'] ) ) {
-		$token = $response['access_token'];
-		$accessionNumbers = getAccessionNumbers();
-		foreach ( $accessionNumbers as $sequenceid => $genbank ) {
-			// Get iNat observation ID
-			$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;
-			$inatdata = make_curl_request( $url );
-			if ( $inatdata
-				&& isset( $inatdata['results'] )
-				&& isset( $inatdata['results'][0] )
-				&& isset( $inatdata['results'][0]['id'] )
-			) {
-				$observationid = $inatdata['results'][0]['id'];
-				//print( $observationid . ": " . $genbank . "<br/>" );
-				$updateResults[$sequenceid] = post_genbank( $observationid, $genbank );
-			} else {
-				$url = $inatapi . 'observations?field%3ABOLD+ID=' . $sequenceid;
-				$inatdata = make_curl_request( $url );
-				if ( $inatdata
-					&& isset( $inatdata['results'] )
-					&& isset( $inatdata['results'][0] )
-					&& isset( $inatdata['results'][0]['id'] )
-				) {
-					$observationid = $inatdata['results'][0]['id'];
-					//print( $observationid . ": " . $genbank . "<br/>" );
-					$updateResults[$sequenceid] = post_genbank( $observationid, $genbank );
-				} else {
-					$errors[] = 'No observation found for ' . $sequenceid;
+if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
+	// File size sanity check
+	if ( $_FILES['accessionreport']['size'] < 10000 ) {
+		$fileData = file_get_contents( $_FILES['accessionreport']['tmp_name'] );
+		$accessionNumbers = getAccessionNumbers( $fileData );
+		if ( $accessionNumbers ) {
+			// Get authentication token
+			$response = iNat_auth_request( $app_id, $app_secret, $username, $password );
+			if ( $response && isset( $response['access_token'] ) ) {
+				$token = $response['access_token'];
+				foreach ( $accessionNumbers as $sequenceid => $genbank ) {
+					// Get iNat observation ID
+					$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;
+					$inatdata = make_curl_request( $url );
+					sleep( 1 );
+					if ( $inatdata
+						&& isset( $inatdata['results'] )
+						&& isset( $inatdata['results'][0] )
+						&& isset( $inatdata['results'][0]['id'] )
+					) {
+						$observationid = $inatdata['results'][0]['id'];
+						$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
+					} else {
+						$url = $inatapi . 'observations?field%3ABOLD+ID=' . $sequenceid;
+						$inatdata = make_curl_request( $url );
+						sleep( 1 );
+						if ( $inatdata
+							&& isset( $inatdata['results'] )
+							&& isset( $inatdata['results'][0] )
+							&& isset( $inatdata['results'][0]['id'] )
+						) {
+							$observationid = $inatdata['results'][0]['id'];
+							$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
+						} else {
+							$updateResults[$sequenceid] = false;
+							$errors[] = 'No observation found for ' . $sequenceid . '.';
+						}
+					}
 				}
+			} else {
+				$errors[] = 'iNaturalist authentication failed.';
 			}
-			sleep( $sleeptime );
+		} else {
+			$errors[] = 'No accession numbers found in input file.';
 		}
 	} else {
-		$errors[] = 'iNaturalist authentication failed.';
+		$errors[] = 'AccessionReport file is too large.';
 	}
 }
 ?>
@@ -170,9 +186,8 @@ body {
 #content {
 	margin: 2em;
 	}
-#success {
+#results {
 	margin: 1em 0;
-	font-weight: bold;
 	}
 #errors {
 	margin: 1em 0;
@@ -180,25 +195,42 @@ body {
 	font-weight: bold;
 	}
 </style>
-<!--<script src="./jquery.min.js"></script>-->
+<script src="./jquery.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function () {
+    $("#form1").submit(function () {
+        $(".submitbtn").attr("disabled", true);
+        return true;
+    });
+});
+</script>
 </head>
 <body>
 <div id="content">
 <?php
 if ( $updateResults ) {
-	print( '<p id="success">Update successful!</p>' );
-	//var_dump( $response );
+	print( '<p id="results">' );
+	print( '<b>Results:</b><br/>' );
+	foreach( $updateResults as $sequenceid => $result ) {
+		if ( $result ) {
+			print( '&nbsp;&nbsp;&nbsp;' . $sequenceid . ': <span style="color:#228B22;">Successfully updated</span><br/>' );
+		} else {
+			print( '&nbsp;&nbsp;&nbsp;' . $sequenceid . ': Failed to update<br/>' );
+		}
+	}
+	print( '</p>' );
 }
 if ( $errors ) {
 	print( '<p id="errors">' );
 	print( 'Errors:<br/>' );
 	foreach ( $errors as $error ) {
-		print( $error . '<br/>' );
+		print( '&nbsp;&nbsp;&nbsp;' . $error . '<br/>' );
 	}
 	print( '</p>' );
 }
 ?>
 <form id="form1" action="inatgenbank.php" method="post" enctype="multipart/form-data">
+<p>Upload the AccessionReport.tsv file supplied by GenBank. Processing may take several minutes.</p>
 <p>
 	<input type="file" id="accessionreport" name="accessionreport" />
 </p>
