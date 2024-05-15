@@ -9,7 +9,26 @@ include 'conf.php';
 $useragent = 'iNatGenBank/1.0';
 $inatapi = 'https://api.inaturalist.org/v1/';
 $errors = [];
-$updated = false;
+$updateResults = [];
+$sleeptime = 1;
+
+function getAccessionNumbers() {
+	$accessionNumbers = [];
+	$myFile = "AccessionReport.tsv";
+	$fh = fopen( $myFile, 'r' );
+	if ( $fh ) {
+		$observations = explode( "\n", fread( $fh, filesize( $myFile ) ) );
+		foreach( $observations as $observation ) {
+			if ( preg_match( '/(\w+\d+)\t([\w\d\-]+)\t.*/', $observation, $matches ) ) {
+				$genbank = $matches[1];
+				$sequenceid = $matches[2];
+				$accessionNumbers[$sequenceid] = $genbank;
+			}
+		}
+	}
+	fclose( $fh );
+	return $accessionNumbers;
+}
 
 function make_curl_request( $url = null, $token = null, $postData = null ) {
 	global $useragent, $errors;
@@ -80,18 +99,32 @@ function iNat_auth_request( $app_id, $app_secret, $username, $password, $url = '
     }
 }
 
+// Post GenBank acccession number
+function post_genbank( $observationid, $genbank ) {
+	$postData['observation_field_value'] = [];
+	$postData['observation_field_value']['observation_id'] = intval( $observationid );
+	$postData['observation_field_value']['value'] = $genbank;
+	$postData['observation_field_value']['observation_field_id'] = 7555;
+	$postData = json_encode( $postData );
+	$url = $inatapi . 'observation_field_values';
+	$response = make_curl_request( $url, $token, $postData );
+	if ( $response ) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 // See if form was submitted.
 if ( $_POST ) {
-	if ( isset( $_POST['accession'] )
-		&& isset( $_POST['genbank'] )
-		&& strlen( $_POST['genbank'] ) > 6
-	) {
-		// Get authentication token
-		$response = iNat_auth_request( $app_id, $app_secret, $username, $password );
-		if ( $response && isset( $response['access_token'] ) ) {
-			$token = $response['access_token'];
+	// Get authentication token
+	$response = iNat_auth_request( $app_id, $app_secret, $username, $password );
+	if ( $response && isset( $response['access_token'] ) ) {
+		$token = $response['access_token'];
+		$accessionNumbers = getAccessionNumbers();
+		foreach ( $accessionNumbers as $sequenceid => $genbank ) {
 			// Get iNat observation ID
-			$url = $inatapi . 'observations?field%3AAccession+Number=' . $_POST['accession'];
+			$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;
 			$inatdata = make_curl_request( $url );
 			if ( $inatdata
 				&& isset( $inatdata['results'] )
@@ -99,26 +132,28 @@ if ( $_POST ) {
 				&& isset( $inatdata['results'][0]['id'] )
 			) {
 				$observationid = $inatdata['results'][0]['id'];
-				// Post GenBank acccession number
-				$postData['observation_field_value'] = [];
-				$postData['observation_field_value']['observation_id'] = intval( $observationid );
-				$postData['observation_field_value']['value'] = $_POST['genbank'];
-				$postData['observation_field_value']['observation_field_id'] = 7555;
-				$postData = json_encode( $postData );
-				$url = $inatapi . 'observation_field_values';
-				$response = make_curl_request( $url, $token, $postData );
-				if ( $response ) {
-					$updated = true;
-				}
+				//print( $observationid . ": " . $genbank . "<br/>" );
+				$updateResults[$sequenceid] = post_genbank( $observationid, $genbank );
 			} else {
-				$errors[] = 'No observation found for ' . $_POST['accession'];
+				$url = $inatapi . 'observations?field%3ABOLD+ID=' . $sequenceid;
+				$inatdata = make_curl_request( $url );
+				if ( $inatdata
+					&& isset( $inatdata['results'] )
+					&& isset( $inatdata['results'][0] )
+					&& isset( $inatdata['results'][0]['id'] )
+				) {
+					$observationid = $inatdata['results'][0]['id'];
+					//print( $observationid . ": " . $genbank . "<br/>" );
+					$updateResults[$sequenceid] = post_genbank( $observationid, $genbank );
+				} else {
+					$errors[] = 'No observation found for ' . $sequenceid;
+				}
 			}
-		} else {
-			$errors[] = 'iNaturalist authentication failed.';
+			sleep( $sleeptime );
 		}
-
+	} else {
+		$errors[] = 'iNaturalist authentication failed.';
 	}
-
 }
 ?>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -150,7 +185,7 @@ body {
 <body>
 <div id="content">
 <?php
-if ( $updated ) {
+if ( $updateResults ) {
 	print( '<p id="success">Update successful!</p>' );
 	//var_dump( $response );
 }
@@ -163,10 +198,9 @@ if ( $errors ) {
 	print( '</p>' );
 }
 ?>
-<form id="form1" action="inatgenbank.php" method="post">
+<form id="form1" action="inatgenbank.php" method="post" enctype="multipart/form-data">
 <p>
-	FunDiS Accession Number: <input type="text" id="accession" name="accession" /><br/><br/>
-	GenBank Accession Number: <input type="text" id="genbank" name="genbank" />
+	<input type="file" id="accessionreport" name="accessionreport" />
 </p>
 <input class="submitbtn" type="submit" />
 </form>
