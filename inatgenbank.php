@@ -146,7 +146,7 @@ if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
 						$observationid = $inatdata['results'][0]['id'];
 						$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
 					} else {
-						$url = $inatapi . 'observations?field%3ABOLD+ID=' . $sequenceid;
+						$url = $inatapi . 'observations?field%3AFUNDIS+Tag+Number=' . $sequenceid;
 						$inatdata = make_curl_request( $url );
 						sleep( 1 );
 						if ( $inatdata
