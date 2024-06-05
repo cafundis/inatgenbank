@@ -13,3 +13,5 @@ PP791217	HAY-F-006002	05/19/2024
 ```
 
 Once the steps above are complete, load the `inatgenbank.php` webpage in your web browser. Click "Choose File" and choose the AccessionReport.tsv file. Click "Submit" and wait for the script to finish processing. This may take several minutes depending on how many records are in the file. A maximum of 100 records can be processed at once.
+
+If you would like the script to generate a log file, make sure that either the directory the script is in is writable or that there is a writable file in the diretory named `log.txt`.
