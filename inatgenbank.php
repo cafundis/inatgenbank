@@ -10,6 +10,27 @@ $useragent = 'iNatGenBank/1.0';
 $inatapi = 'https://api.inaturalist.org/v1/';
 $errors = [];
 $updateResults = [];
+$logging = false;
+
+function logMessage( $message ) {
+	if ( is_writable( 'log.txt' ) ) {
+		file_put_contents( 'log.txt', $message . "\n", FILE_APPEND );
+	}
+}
+
+function resetLog() {
+	global $errors;
+	$fp = fopen( 'log.txt', 'w' );
+	if ( $fp ) {
+		$date = new DateTime();
+		$date = $date->format("Y-m-d h:i:s");
+		fwrite( $fp, $date);
+		fwrite( $fp, PHP_EOL);
+		fclose( $fp );
+	} else {
+		$errors[] = 'Log file is not writable. Please check permissions.';
+	}
+}
 
 function getAccessionNumbers( $fileData ) {
 	global $errors;
@@ -124,6 +145,10 @@ function post_genbank( $observationid, $genbank, $token ) {
 
 // See if form was submitted.
 if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
+	if ( isset( $_POST['logfile'] ) ) {
+		$logging = true;
+		resetLog();
+	}
 	// File size sanity check
 	if ( $_FILES['accessionreport']['size'] < 10000 ) {
 		$fileData = file_get_contents( $_FILES['accessionreport']['tmp_name'] );
@@ -134,19 +159,13 @@ if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
 			if ( $response && isset( $response['access_token'] ) ) {
 				$token = $response['access_token'];
 				foreach ( $accessionNumbers as $sequenceid => $genbank ) {
-					// Get iNat observation ID
-					$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;
-					$inatdata = make_curl_request( $url );
-					sleep( 1 );
-					if ( $inatdata
-						&& isset( $inatdata['results'] )
-						&& isset( $inatdata['results'][0] )
-						&& isset( $inatdata['results'][0]['id'] )
-					) {
-						$observationid = $inatdata['results'][0]['id'];
-						$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
+
+					// Get the iNaturalist observation ID
+					$observationid = null;
+					if ( preg_match( '/[0-9]{8,10}/', $sequenceid ) ) {
+						$observationid = $sequenceid;
 					} else {
-						$url = $inatapi . 'observations?field%3AFUNDIS+Tag+Number=' . $sequenceid;
+						$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;
 						$inatdata = make_curl_request( $url );
 						sleep( 1 );
 						if ( $inatdata
@@ -155,12 +174,38 @@ if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
 							&& isset( $inatdata['results'][0]['id'] )
 						) {
 							$observationid = $inatdata['results'][0]['id'];
-							$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
 						} else {
-							$updateResults[$sequenceid] = false;
-							$errors[] = 'No observation found for ' . $sequenceid . '.';
+							$url = $inatapi . 'observations?field%3AFUNDIS+Tag+Number=' . $sequenceid;
+							$inatdata = make_curl_request( $url );
+							sleep( 1 );
+							if ( $inatdata
+								&& isset( $inatdata['results'] )
+								&& isset( $inatdata['results'][0] )
+								&& isset( $inatdata['results'][0]['id'] )
+							) {
+								$observationid = $inatdata['results'][0]['id'];
+							}
 						}
 					}
+
+					// If we successfully got the iNaturalist observation ID ...
+					if ( $observationid ) {
+						// ... post the GenBank accession number to the iNaturalist observation
+						$updateResults[$sequenceid] = post_genbank( $observationid, $genbank, $token );
+					} else {
+						$updateResults[$sequenceid] = false;
+						$errors[] = 'No observation found for ' . $sequenceid . '.';
+					}
+
+					// Log the results if logging was requested
+					if ( $logging ) {
+						if ( $updateResults[$sequenceid] && $observationid ) {
+							logMessage( $sequenceid . ': Successfully updated iNaturalist record ' . $observationid . '.' );
+						} else {
+							logMessage( $sequenceid . ': Failed to update.' );
+						}
+					}
+
 				}
 			} else {
 				$errors[] = 'iNaturalist authentication failed.';
@@ -229,13 +274,17 @@ if ( $errors ) {
 	}
 	print( '</p>' );
 }
+if ( $logging ) {
+	print( '<p id="log">' );
+	print( '<a href="log.txt" download>Download log file</a>' );
+	print( '</p>' );
+}
 ?>
 <form id="form1" action="inatgenbank.php" method="post" enctype="multipart/form-data">
 <p>Upload the AccessionReport.tsv file supplied by GenBank. Processing may take several minutes.</p>
-<p>
-	<input type="file" id="accessionreport" name="accessionreport" />
-</p>
-<input class="submitbtn" type="submit" />
+<p><input type="file" id="accessionreport" name="accessionreport" /></p>
+<p><input type="checkbox" id="logfile" name="logfile" value="on"><label for="logfile"> Generate log file</label></p>
+<p><input class="submitbtn" type="submit" /></p>
 </form>
 </body>
 </html>
