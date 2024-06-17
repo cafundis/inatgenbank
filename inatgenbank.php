@@ -162,7 +162,7 @@ if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
 
 					// Get the iNaturalist observation ID
 					$observationid = null;
-					if ( preg_match( '/[0-9]{8,10}/', $sequenceid ) ) {
+					if ( preg_match( '/[0-9]{9,10}/', $sequenceid ) ) {
 						$observationid = $sequenceid;
 					} else {
 						$url = $inatapi . 'observations?field%3AAccession+Number=' . $sequenceid;

@@ -15,3 +15,5 @@ PP791217	HAY-F-006002	05/19/2024
 Once the steps above are complete, load the `inatgenbank.php` webpage in your web browser. Click "Choose File" and choose the AccessionReport.tsv file. Click "Submit" and wait for the script to finish processing. This may take several minutes depending on how many records are in the file. A maximum of 100 records can be processed at once.
 
 If you would like the script to generate a log file, make sure that either the directory the script is in is writable or that there is a writable file in the diretory named `log.txt`.
+
+Note that if the Sequence ID in the AccessionReport.tsv is an iNaturalist observation ID (i.e. a 9 or 10 digit number), the script will post the GenBank accession number directly to that iNaturalist observation without looking for the "Accession Number" observation field. The script also supports the "FUNDIS Tag Number" observation field as an alternative to the "Accession Number" observation field.
