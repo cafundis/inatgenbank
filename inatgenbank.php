@@ -149,6 +149,8 @@ if ( $_FILES && isset( $_FILES['accessionreport'] ) ) {
 		$logging = true;
 		resetLog();
 	}
+	$username = $_POST['username'];
+	$password = $_POST['password'];
 	// File size sanity check
 	if ( $_FILES['accessionreport']['size'] < 10000 ) {
 		$fileData = file_get_contents( $_FILES['accessionreport']['tmp_name'] );
@@ -280,9 +282,13 @@ if ( $logging ) {
 	print( '</p>' );
 }
 ?>
+<p>&nbsp;</p>
 <form id="form1" action="inatgenbank.php" method="post" enctype="multipart/form-data">
 <p>Upload the AccessionReport.tsv file supplied by GenBank. Processing may take several minutes.</p>
 <p><input type="file" id="accessionreport" name="accessionreport" /></p>
+<p>Enter your iNaturalist username and password. This will be used to post the observation field to iNaturalist. This is data is not stored.<br/>
+Username: <input type="text" id="username" name="username" required/><br/>
+Password: <input type="password" id="password" name="password" required/></p>
 <p><input type="checkbox" id="logfile" name="logfile" value="on"><label for="logfile"> Generate log file</label></p>
 <p><input class="submitbtn" type="submit" /></p>
 </form>
