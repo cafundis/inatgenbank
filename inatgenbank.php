@@ -286,7 +286,7 @@ if ( $logging ) {
 <form id="form1" action="inatgenbank.php" method="post" enctype="multipart/form-data">
 <p>Upload the AccessionReport.tsv file supplied by GenBank. Processing may take several minutes.</p>
 <p><input type="file" id="accessionreport" name="accessionreport" /></p>
-<p>Enter your iNaturalist username and password. This will be used to post the observation field to iNaturalist. This is data is not stored.<br/>
+<p>Enter your iNaturalist username and password. This will be used to post the observation field to iNaturalist. This data is not stored.<br/>
 Username: <input type="text" id="username" name="username" required/><br/>
 Password: <input type="password" id="password" name="password" required/></p>
 <p><input type="checkbox" id="logfile" name="logfile" value="on" checked><label for="logfile"> Generate log file</label></p>
