@@ -289,7 +289,7 @@ if ( $logging ) {
 <p>Enter your iNaturalist username and password. This will be used to post the observation field to iNaturalist. This is data is not stored.<br/>
 Username: <input type="text" id="username" name="username" required/><br/>
 Password: <input type="password" id="password" name="password" required/></p>
-<p><input type="checkbox" id="logfile" name="logfile" value="on"><label for="logfile"> Generate log file</label></p>
+<p><input type="checkbox" id="logfile" name="logfile" value="on" checked><label for="logfile"> Generate log file</label></p>
 <p><input class="submitbtn" type="submit" /></p>
 </form>
 </body>
